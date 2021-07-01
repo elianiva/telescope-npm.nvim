@@ -7,7 +7,6 @@ local previewers = require "telescope.previewers.term_previewer"
 local actions = require "telescope.actions"
 local action_state = require "telescope.actions.state"
 local utils = require "telescope.utils"
-local Job = require "plenary.job"
 local a, fn = vim.api, vim.fn
 
 local M = {}
@@ -24,10 +23,6 @@ local tbl_to_arr = function(tbl)
   end
 
   return result
-end
-
-local decorate_str = function(str)
-  return "[1;34m======[[1;32m" .. str .. "[1;34m]======[0m\r\n"
 end
 
 local get_npm_scripts = function(dir)
@@ -92,17 +87,6 @@ local map = function(bufnr)
   )
 end
 
-local open_term = function()
-  local bufnr = a.nvim_get_current_buf()
-  local chan_id = a.nvim_open_term(bufnr, {})
-
-  vim.bo.buflisted = false
-
-  map(bufnr)
-
-  return bufnr, chan_id
-end
-
 local main_action = function(prompt_bufnr, cmd)
   local selection = action_state.get_selected_entry()
   local is_running = M.jobs[selection.name]
@@ -150,61 +134,7 @@ local main_action = function(prompt_bufnr, cmd)
 
   actions.close(prompt_bufnr)
 
-  vim.cmd(cmd)
-
-  local bufnr, chan_id = open_term()
-
-  local job
-  job = Job:new {
-    command = "npm",
-    args = { "run", selection.name },
-    env = {
-      PATH = vim.env.PATH,
-      TERM = "xterm-256color",
-      FORCE_COLOR = 2,
-    },
-    on_start = function()
-      vim.schedule(function()
-        a.nvim_chan_send(chan_id, decorate_str "Running...")
-        a.nvim_buf_call(bufnr, function()
-          vim.fn.search("^.\\+")
-        end)
-        M.jobs[selection.name] = {
-          pid = job.pid,
-          bufnr = bufnr,
-        }
-      end)
-    end,
-    on_stdout = function(err, data)
-      assert(not err, err)
-
-      if data == "\n" or data == "" then
-        data = "\r\n"
-      elseif not data or data == "" then
-        data = ""
-      else
-        data = data .. "\r\n"
-      end
-
-      vim.schedule(function()
-        a.nvim_chan_send(chan_id, data)
-        a.nvim_buf_call(bufnr, function()
-          vim.fn.search("^.\\+")
-        end)
-      end)
-    end,
-    on_exit = function()
-      vim.schedule(function()
-        a.nvim_chan_send(chan_id, decorate_str "Done!")
-        a.nvim_buf_call(bufnr, function()
-          vim.fn.search("^.\\+")
-        end)
-
-        M.jobs[selection.name] = nil
-      end)
-    end,
-  }
-  job:start()
+  vim.cmd(string.format("%s term://npm run %s | wincmd p", cmd, selection.name))
 end
 
 M.scripts = function(opts)
