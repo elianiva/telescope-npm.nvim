@@ -24,6 +24,7 @@ end
 
 M.merge_array = function(x, y)
   if not y then return x end
+  if not x then return y end
 
   for i = 1, #y do
     x[#x + 1] = y[i]

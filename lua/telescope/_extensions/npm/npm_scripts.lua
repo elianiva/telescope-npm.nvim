@@ -13,6 +13,10 @@ local M = {}
 __TelescopeNPMJobState = __TelescopeNPMJobState or {}
 M.jobs = __TelescopeNPMJobState
 
+M.cleanup = function(name)
+  M.jobs[name] = nil
+end
+
 local execute = function(prompt_bufnr, cmd)
   local entry = action_state.get_selected_entry()
   local is_running = M.jobs[entry.name]
@@ -24,7 +28,7 @@ local execute = function(prompt_bufnr, cmd)
     if cmd == "new" then
       vim.cmd(term_buf .. "sb")
     elseif cmd == "vnew" then
-      vim.cmd("sp")
+      vim.cmd "sp"
     end
 
     vim.cmd(term_buf .. "b")
@@ -39,8 +43,18 @@ local execute = function(prompt_bufnr, cmd)
   actions.close(prompt_bufnr)
 
   vim.cmd(string.format("%s term://npm run %s", cmd, entry.name))
-  M.jobs[entry.name] = vim.api.nvim_get_current_buf()
+  local bufnr = vim.api.nvim_get_current_buf()
+  M.jobs[entry.name] = bufnr
   vim.bo.buflisted = false
+
+  vim.cmd(
+    string.format(
+      "au TermClose <buffer=%s> lua require('telescope._extensions.npm.npm_scripts').cleanup('%s')",
+      bufnr,
+      entry.name
+    )
+  )
+
   vim.cmd "wincmd p"
 end
 
