@@ -64,7 +64,7 @@ local gen_from_npm_scripts = function(opts)
 
   local function make_display(entry)
     -- TODO(elianiva): find better way to detect this
-    local status = M.jobs[entry.key] and { "(ON)", "TelescopeResultsField" }
+    local status = M.jobs[entry.name] and { "(ON)", "TelescopeResultsField" }
       or { "(OFF)", "TelescopeResultsNumber" }
 
     return displayer {
